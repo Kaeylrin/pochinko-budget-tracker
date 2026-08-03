@@ -207,8 +207,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Navigation Links */}
-          <ul className="flex flex-row md:flex-col gap-2 w-full justify-around md:justify-start">
+          {/* Navigation Links (Desktop Sidebar Only - Hidden on Mobile) */}
+          <ul className="hidden md:flex flex-col gap-2 w-full justify-start">
             {[
               { id: 'dashboard', label: 'Dashboard', icon: Home },
               { id: 'history', label: 'Timeline History', icon: History },
@@ -229,7 +229,7 @@ export default function App() {
                     }`}
                   >
                     <Icon size={18} className="flex-shrink-0" />
-                    <span className="hidden md:inline">{tab.label}</span>
+                    <span>{tab.label}</span>
                   </button>
                 </li>
               );
@@ -956,41 +956,32 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating Bottom Navigation Bar (Mobile / Compact screens) */}
-      <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">
-        {/* Navigation Bar Pill */}
-        <div className="bg-[#1F2937] text-white p-1.5 rounded-3xl border-2 border-gray-900 shadow-2xl flex items-center gap-1 pointer-events-auto flex-1 mr-3 justify-around max-w-xs backdrop-blur-md">
-          {[
-            { id: 'dashboard', label: 'Home', icon: Home },
-            { id: 'accounts', label: 'Wallet', icon: Wallet },
-            { id: 'goals', label: 'Plan', icon: Calendar },
-            { id: 'history', label: 'History', icon: History },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center py-1.5 px-3 rounded-2xl cursor-pointer transition-all ${
-                  isActive ? 'bg-[#FFF2B2] text-gray-900 font-black shadow-xs' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <Icon size={18} />
-                <span className="text-[10px] mt-0.5">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Floating Add (+) Action Button */}
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="w-14 h-14 rounded-full bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 shadow-2xl flex items-center justify-center text-gray-900 pointer-events-auto cursor-pointer hover:scale-110 active:scale-95 transition-all flex-shrink-0"
-          title="Log New Entry"
-        >
-          <Plus size={28} className="stroke-[3]" />
-        </button>
+      {/* Bottom Navigation Bar (Mobile View matching reference design with yellow background & active rounded dark pill) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FFF2B2] border-t border-yellow-300 px-6 py-2.5 flex items-center justify-around shadow-lg">
+        {[
+          { id: 'dashboard', label: 'Home', icon: Home },
+          { id: 'history', label: 'History', icon: History },
+          { id: 'accounts', label: 'Accounts', icon: Wallet },
+          { id: 'analytics', label: 'Analytics', icon: PieChart },
+          { id: 'goals', label: 'Plans', icon: Calendar },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                isActive 
+                  ? 'bg-[#1F2937] text-[#FFF2B2] w-13 h-13 rounded-2xl shadow-md scale-105' 
+                  : 'text-[#1F2937]/70 hover:text-[#1F2937] w-10 h-10'
+              }`}
+              title={tab.label}
+            >
+              <Icon size={isActive ? 22 : 20} className={isActive ? 'text-[#FFF2B2]' : 'text-gray-800'} />
+            </button>
+          );
+        })}
       </div>
 
       {/* Settings Modal */}
