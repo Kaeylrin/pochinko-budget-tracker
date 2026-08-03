@@ -37,6 +37,8 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, PieChart a
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
   const [showNetWorth, setShowNetWorth] = useState(true);
   const [accountFilter, setAccountFilter] = useState('all'); // all, assets, liabilities
   const [historySearch, setHistorySearch] = useState('');
@@ -50,6 +52,8 @@ export default function App() {
     recentIncome, 
     recentExpenses, 
     streakDays,
+    streakCountCriteria,
+    setStreakCountCriteria,
     userName,
     deleteTransaction,
     exportToCSV,
@@ -246,29 +250,46 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
-        {/* Top Header Row with Streak & Greeting */}
+        {/* Top Header Row with Clickable Streak & Settings */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
           <div>
             <div className="flex items-center gap-3">
               <span className="text-xs font-black tracking-wider uppercase text-gray-500">
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </span>
-              <div className="flex items-center gap-1 bg-amber-100 border border-amber-300 text-amber-900 text-xs font-black px-3 py-1 rounded-full">
-                <Flame size={14} className="fill-amber-500 text-amber-500" />
-                x{streakDays} day streak!
-              </div>
+              
+              {/* Clickable Streak Pill */}
+              <button
+                onClick={() => setIsStreakModalOpen(true)}
+                className="flex items-center gap-1.5 bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 text-gray-900 text-xs font-black px-3.5 py-1.5 rounded-full shadow-xs cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                title="Click to view streak breakdown & settings"
+              >
+                <Flame size={15} className="fill-amber-500 text-amber-600 animate-bounce" />
+                <span>x{streakDays} day streak!</span>
+              </button>
             </div>
+            
             <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight mt-1">
               Good evening, <span className="text-amber-600">{userName}</span>!
             </h2>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {/* Quick Action + Entry */}
             <button
               onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-2 bg-[#1F2937] hover:bg-gray-800 text-[#FFF2B2] font-black py-3 px-5 rounded-2xl border-2 border-gray-900 shadow-md transition-all duration-200 cursor-pointer text-xs sm:text-sm hover:scale-105 active:scale-95 hover:shadow-lg"
             >
-              <Plus size={18} className="text-[#FFF2B2]" /> Log New Entry
+              <Plus size={18} className="text-[#FFF2B2]" /> Log Entry
+            </button>
+
+            {/* Settings Gear Button */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-3 bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 text-gray-900 rounded-2xl shadow-xs cursor-pointer hover:scale-105 active:scale-95 transition-all"
+              title="Open Settings"
+            >
+              <Settings size={20} />
             </button>
           </div>
         </div>
@@ -934,6 +955,155 @@ export default function App() {
           <PlansAndPaymentsSection />
         )}
       </main>
+
+      {/* Floating Bottom Navigation Bar (Mobile / Compact screens) */}
+      <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">
+        {/* Navigation Bar Pill */}
+        <div className="bg-[#1F2937] text-white p-1.5 rounded-3xl border-2 border-gray-900 shadow-2xl flex items-center gap-1 pointer-events-auto flex-1 mr-3 justify-around max-w-xs backdrop-blur-md">
+          {[
+            { id: 'dashboard', label: 'Home', icon: Home },
+            { id: 'accounts', label: 'Wallet', icon: Wallet },
+            { id: 'goals', label: 'Plan', icon: Calendar },
+            { id: 'history', label: 'History', icon: History },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex flex-col items-center py-1.5 px-3 rounded-2xl cursor-pointer transition-all ${
+                  isActive ? 'bg-[#FFF2B2] text-gray-900 font-black shadow-xs' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Icon size={18} />
+                <span className="text-[10px] mt-0.5">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Floating Add (+) Action Button */}
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="w-14 h-14 rounded-full bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 shadow-2xl flex items-center justify-center text-gray-900 pointer-events-auto cursor-pointer hover:scale-110 active:scale-95 transition-all flex-shrink-0"
+          title="Log New Entry"
+        >
+          <Plus size={28} className="stroke-[3]" />
+        </button>
+      </div>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md border-2 border-gray-900 shadow-2xl text-gray-900">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Settings size={20} className="text-amber-600" />
+                <h3 className="text-lg font-black text-gray-900">App Preferences & Rules</h3>
+              </div>
+              <button onClick={() => setIsSettingsOpen(false)} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-900 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Daily Streak Calculation Criteria Option */}
+              <div className="p-4 bg-[#FFF2B2]/60 rounded-2xl border border-yellow-300">
+                <label className="block text-xs font-black uppercase text-amber-950 mb-1">
+                  🔥 Daily Streak Calculation Rule
+                </label>
+                <p className="text-xs text-gray-600 font-semibold mb-3">
+                  Choose which transactions qualify to maintain your daily streak count:
+                </p>
+
+                <div className="space-y-2">
+                  {[
+                    { id: 'either', label: 'Either (Income OR Expense)', desc: 'Any transaction logged daily maintains your streak' },
+                    { id: 'expense', label: 'Expenses Only', desc: 'Only daily expenses count toward maintaining your streak' },
+                    { id: 'income', label: 'Income Only', desc: 'Only daily earnings count toward maintaining your streak' },
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setStreakCountCriteria(option.id)}
+                      className={`w-full text-left p-3 rounded-xl border-2 font-bold transition-all cursor-pointer ${
+                        streakCountCriteria === option.id
+                          ? 'bg-gray-900 text-white border-gray-900 shadow-xs'
+                          : 'bg-white text-gray-800 border-yellow-300 hover:bg-yellow-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs font-black">
+                        <span>{option.label}</span>
+                        {streakCountCriteria === option.id && <CheckCircle2 size={14} className="text-amber-300" />}
+                      </div>
+                      <span className={`text-[10px] block mt-0.5 font-medium ${streakCountCriteria === option.id ? 'text-gray-300' : 'text-gray-500'}`}>
+                        {option.desc}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="w-full py-3 bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 font-black text-xs text-gray-900 rounded-2xl shadow-xs cursor-pointer"
+              >
+                Save & Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Streak Info Modal */}
+      {isStreakModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md border-2 border-gray-900 shadow-2xl text-gray-900">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <Flame size={24} className="fill-amber-500 text-amber-600 animate-bounce" />
+                <h3 className="text-xl font-black text-gray-900">x{streakDays} Day Streak!</h3>
+              </div>
+              <button onClick={() => setIsStreakModalOpen(false)} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-900 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs font-semibold text-gray-700">
+              <div className="p-4 bg-[#FFF2B2] rounded-2xl border border-yellow-300">
+                <span className="text-xs font-black uppercase text-amber-950 block mb-1">Current Rule</span>
+                <p className="text-gray-900 font-bold">
+                  Counting transactions where type matches: <span className="uppercase text-amber-700 font-black">[{streakCountCriteria}]</span>
+                </p>
+              </div>
+
+              <p>
+                Keep logging your daily activity to maintain your momentum and unlock streak achievements!
+              </p>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setIsStreakModalOpen(false);
+                    setIsSettingsOpen(true);
+                  }}
+                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 border border-gray-300 font-black text-gray-800 rounded-2xl cursor-pointer"
+                >
+                  Change Streak Rule
+                </button>
+                <button
+                  onClick={() => setIsStreakModalOpen(false)}
+                  className="flex-1 py-3 bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 font-black text-gray-900 rounded-2xl cursor-pointer"
+                >
+                  Awesome!
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Transaction Modal */}
       <TransactionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />

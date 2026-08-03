@@ -45,10 +45,15 @@ export const useStore = create((set, get) => ({
   commitments: initialCommitments,
   personalGoals: initialPersonalGoals,
   streakDays: 10,
+  streakCountCriteria: 'either', // 'either' | 'expense' | 'income'
   userName: 'Kaeyls',
   netWorth: 0,
   recentIncome: 1876.95,
   recentExpenses: 9408.42,
+
+  setStreakCountCriteria: (criteria) => {
+    set({ streakCountCriteria: criteria });
+  },
 
   // Calculate Net Worth: Add assets (debit/e-wallet), subtract liabilities (pay_later/credit)
   calculateNetWorth: () => {
