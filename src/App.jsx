@@ -207,6 +207,15 @@ export default function App() {
             </div>
           </div>
 
+          {/* Desktop Log Entry Button */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="hidden md:flex w-full items-center justify-center gap-2.5 bg-[#1F2937] hover:bg-gray-800 text-[#FFF2B2] font-black py-3.5 px-4 rounded-2xl border-2 border-gray-900 shadow-md transition-all duration-200 cursor-pointer text-sm hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Plus size={20} className="stroke-[3] text-[#FFF2B2]" />
+            <span>Log New Entry</span>
+          </button>
+
           {/* Navigation Links (Desktop Sidebar Only - Hidden on Mobile) */}
           <ul className="hidden md:flex flex-col gap-2 w-full justify-start">
             {[
@@ -282,6 +291,14 @@ export default function App() {
               Good evening, <span className="text-amber-600">{userName}</span>!
             </h2>
           </div>
+
+          {/* Desktop Top Right Header Button (Hidden on Mobile) */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="hidden md:flex items-center gap-2 bg-[#1F2937] hover:bg-gray-800 text-[#FFF2B2] font-black py-3 px-5 rounded-2xl border-2 border-gray-900 shadow-md transition-all duration-200 cursor-pointer text-sm hover:scale-105 active:scale-95"
+          >
+            <Plus size={18} className="text-[#FFF2B2]" /> Log New Entry
+          </button>
         </div>
 
         {/* TAB 1: DASHBOARD */}
