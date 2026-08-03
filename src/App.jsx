@@ -251,9 +251,9 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
         {/* Top Header Row with Clickable Streak & Settings */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
+        <div className="flex items-center justify-between gap-4 pb-4 border-b border-gray-200">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <span className="text-xs font-black tracking-wider uppercase text-gray-500">
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </span>
@@ -262,35 +262,25 @@ export default function App() {
               <button
                 onClick={() => setIsStreakModalOpen(true)}
                 className="flex items-center gap-1.5 bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 text-gray-900 text-xs font-black px-3.5 py-1.5 rounded-full shadow-xs cursor-pointer hover:scale-105 active:scale-95 transition-all"
-                title="Click to view streak breakdown & settings"
+                title="Click to view streak breakdown"
               >
                 <Flame size={15} className="fill-amber-500 text-amber-600 animate-bounce" />
                 <span>x{streakDays} day streak!</span>
+              </button>
+
+              {/* Top Settings Icon Button (Cleanly placed beside streak) */}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-1.5 bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 text-gray-900 rounded-full shadow-xs cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                title="Open Settings"
+              >
+                <Settings size={15} />
               </button>
             </div>
             
             <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight mt-1">
               Good evening, <span className="text-amber-600">{userName}</span>!
             </h2>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {/* Quick Action + Entry */}
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 bg-[#1F2937] hover:bg-gray-800 text-[#FFF2B2] font-black py-3 px-5 rounded-2xl border-2 border-gray-900 shadow-md transition-all duration-200 cursor-pointer text-xs sm:text-sm hover:scale-105 active:scale-95 hover:shadow-lg"
-            >
-              <Plus size={18} className="text-[#FFF2B2]" /> Log Entry
-            </button>
-
-            {/* Settings Gear Button */}
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-3 bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 text-gray-900 rounded-2xl shadow-xs cursor-pointer hover:scale-105 active:scale-95 transition-all"
-              title="Open Settings"
-            >
-              <Settings size={20} />
-            </button>
           </div>
         </div>
 
@@ -956,32 +946,46 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Navigation Bar (Mobile View matching reference design with yellow background & active rounded dark pill) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FFF2B2] border-t border-yellow-300 px-6 py-2.5 flex items-center justify-around shadow-lg">
-        {[
-          { id: 'dashboard', label: 'Home', icon: Home },
-          { id: 'history', label: 'History', icon: History },
-          { id: 'accounts', label: 'Accounts', icon: Wallet },
-          { id: 'analytics', label: 'Analytics', icon: PieChart },
-          { id: 'goals', label: 'Plans', icon: Calendar },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                isActive 
-                  ? 'bg-[#1F2937] text-[#FFF2B2] w-13 h-13 rounded-2xl shadow-md scale-105' 
-                  : 'text-[#1F2937]/70 hover:text-[#1F2937] w-10 h-10'
-              }`}
-              title={tab.label}
-            >
-              <Icon size={isActive ? 22 : 20} className={isActive ? 'text-[#FFF2B2]' : 'text-gray-800'} />
-            </button>
-          );
-        })}
+      {/* Floating Action Button (+) & Bottom Navigation Bar (Mobile / Compact View matching reference image) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
+        {/* Floating + Log Entry Action Button */}
+        <div className="relative max-w-lg mx-auto px-5 pointer-events-none">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="absolute -top-16 right-5 w-14 h-14 rounded-2xl bg-[#1F2937] hover:bg-gray-800 text-[#FFF2B2] border-2 border-gray-900 shadow-2xl flex items-center justify-center pointer-events-auto cursor-pointer hover:scale-110 active:scale-95 transition-all"
+            title="Log New Entry"
+          >
+            <Plus size={30} className="stroke-[3] text-[#FFF2B2]" />
+          </button>
+        </div>
+
+        {/* Bottom Navigation Bar */}
+        <div className="bg-[#FFF2B2] border-t border-yellow-300 px-6 py-2.5 flex items-center justify-around shadow-lg">
+          {[
+            { id: 'dashboard', label: 'Home', icon: Home },
+            { id: 'history', label: 'History', icon: History },
+            { id: 'accounts', label: 'Accounts', icon: Wallet },
+            { id: 'analytics', label: 'Analytics', icon: PieChart },
+            { id: 'goals', label: 'Plans', icon: Calendar },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                  isActive 
+                    ? 'bg-[#1F2937] text-[#FFF2B2] w-13 h-13 rounded-2xl shadow-md scale-105' 
+                    : 'text-[#1F2937]/70 hover:text-[#1F2937] w-10 h-10'
+                }`}
+                title={tab.label}
+              >
+                <Icon size={isActive ? 22 : 20} className={isActive ? 'text-[#FFF2B2]' : 'text-gray-800'} />
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Settings Modal */}
