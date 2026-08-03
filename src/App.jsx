@@ -218,10 +218,10 @@ export default function App() {
                 <li key={tab.id}>
                   <button
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-3.5 py-3.5 rounded-2xl font-black text-xs lg:text-sm transition-all cursor-pointer whitespace-nowrap ${
+                    className={`w-full flex items-center gap-3 px-3.5 py-3.5 rounded-2xl font-black text-xs lg:text-sm transition-all duration-200 cursor-pointer whitespace-nowrap hover:scale-[1.02] active:scale-[0.97] ${
                       active
-                        ? 'bg-[#1F2937] text-[#FFF2B2] shadow-md'
-                        : 'text-gray-800 hover:bg-yellow-200/60'
+                        ? 'bg-[#1F2937] text-[#FFF2B2] shadow-md scale-100'
+                        : 'text-gray-800 hover:bg-yellow-200/70'
                     }`}
                   >
                     <Icon size={18} className="flex-shrink-0" />
@@ -266,9 +266,9 @@ export default function App() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 bg-[#FFF2B2] hover:bg-amber-300 text-gray-900 border-2 border-gray-900 font-black px-6 py-3.5 rounded-2xl shadow-sm transform active:scale-95 transition-all text-sm cursor-pointer"
+              className="flex items-center gap-2 bg-[#1F2937] hover:bg-gray-800 text-[#FFF2B2] font-black py-3 px-5 rounded-2xl border-2 border-gray-900 shadow-md transition-all duration-200 cursor-pointer text-xs sm:text-sm hover:scale-105 active:scale-95 hover:shadow-lg"
             >
-              <Plus size={20} /> Log Transaction
+              <Plus size={18} className="text-[#FFF2B2]" /> Log New Entry
             </button>
           </div>
         </div>
