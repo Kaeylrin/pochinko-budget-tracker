@@ -291,14 +291,6 @@ export default function App() {
               Good evening, <span className="text-amber-600">{userName}</span>!
             </h2>
           </div>
-
-          {/* Desktop Top Right Header Button (Hidden on Mobile) */}
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="hidden md:flex items-center gap-2 bg-[#1F2937] hover:bg-gray-800 text-[#FFF2B2] font-black py-3 px-5 rounded-2xl border-2 border-gray-900 shadow-md transition-all duration-200 cursor-pointer text-sm hover:scale-105 active:scale-95"
-          >
-            <Plus size={18} className="text-[#FFF2B2]" /> Log New Entry
-          </button>
         </div>
 
         {/* TAB 1: DASHBOARD */}
