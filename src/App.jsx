@@ -946,21 +946,10 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating Action Button (+) & Bottom Navigation Bar (Mobile / Compact View matching reference image) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
-        {/* Floating + Log Entry Action Button */}
-        <div className="relative max-w-lg mx-auto px-5 pointer-events-none">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="absolute -top-16 right-5 w-14 h-14 rounded-2xl bg-[#1F2937] hover:bg-gray-800 text-[#FFF2B2] border-2 border-gray-900 shadow-2xl flex items-center justify-center pointer-events-auto cursor-pointer hover:scale-110 active:scale-95 transition-all"
-            title="Log New Entry"
-          >
-            <Plus size={30} className="stroke-[3] text-[#FFF2B2]" />
-          </button>
-        </div>
-
-        {/* Bottom Navigation Bar */}
-        <div className="bg-[#FFF2B2] border-t border-yellow-300 px-6 py-2.5 flex items-center justify-around shadow-lg">
+      {/* Floating Island Bottom Navigation & Floating + Action Button */}
+      <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 flex items-center gap-3 max-w-md mx-auto">
+        {/* Detached Floating Island Navigation Bar with rounded-3xl corners & shadow */}
+        <div className="flex-1 bg-[#FFF2B2] border-2 border-gray-900 rounded-3xl p-2 flex items-center justify-around shadow-2xl backdrop-blur-md">
           {[
             { id: 'dashboard', label: 'Home', icon: Home },
             { id: 'history', label: 'History', icon: History },
@@ -976,16 +965,25 @@ export default function App() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center justify-center transition-all duration-200 cursor-pointer ${
                   isActive 
-                    ? 'bg-[#1F2937] text-[#FFF2B2] w-13 h-13 rounded-2xl shadow-md scale-105' 
-                    : 'text-[#1F2937]/70 hover:text-[#1F2937] w-10 h-10'
+                    ? 'bg-[#1F2937] text-[#FFF2B2] w-11 h-11 rounded-2xl shadow-md scale-105 border border-gray-900' 
+                    : 'text-[#1F2937]/70 hover:text-[#1F2937] w-9 h-9'
                 }`}
                 title={tab.label}
               >
-                <Icon size={isActive ? 22 : 20} className={isActive ? 'text-[#FFF2B2]' : 'text-gray-800'} />
+                <Icon size={isActive ? 20 : 18} className={isActive ? 'text-[#FFF2B2]' : 'text-gray-900'} />
               </button>
             );
           })}
         </div>
+
+        {/* Floating Detached Action Button (+) with rounded-full circular shape & shadow */}
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="w-14 h-14 rounded-full bg-[#1F2937] hover:bg-gray-800 text-[#FFF2B2] border-2 border-gray-900 shadow-2xl flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all flex-shrink-0"
+          title="Log New Entry"
+        >
+          <Plus size={30} className="stroke-[3] text-[#FFF2B2]" />
+        </button>
       </div>
 
       {/* Settings Modal */}
