@@ -1,14 +1,9 @@
 import { create } from 'zustand';
+import { supabase } from '../supabaseClient';
 
-const initialAccounts = [
-  { id: '1', name: 'GCash', type: 'e-wallet', balance: 101.62, categoryGroup: 'E-Wallets', color: '#10B981', template_identifier: 'gcash' },
-  { id: '2', name: 'Maya', type: 'e-wallet', balance: 0.00, categoryGroup: 'E-Wallets', color: '#059669', template_identifier: 'maya' },
-  { id: '3', name: 'MariBank', type: 'debit', balance: 63.68, categoryGroup: 'Banks', color: '#F59E0B', subtext: 'Debit • PHP • 3.75% P.A.', template_identifier: 'debit', annual_interest_rate: 3.75, interest_frequency: 'daily', withholding_tax: 20, maintaining_balance: 0 },
-  { id: '4', name: 'GoTyme', type: 'debit', balance: 2000.00, categoryGroup: 'Banks', color: '#06B6D4', subtext: 'Debit • PHP • 4.0% P.A.', template_identifier: 'debit', annual_interest_rate: 4.0, interest_frequency: 'monthly', withholding_tax: 20, maintaining_balance: 500 },
-  { id: '5', name: 'SpayLater', type: 'pay_later', balance: 2893.50, categoryGroup: 'Liabilities', color: '#EF4444', template_identifier: 'shopeepaylater' },
-];
+const LOCAL_STORAGE_KEY = 'pochinko_app_state_v1';
 
-const initialCategories = [
+const defaultCategories = [
   { id: 'c1', name: 'Gift / Allowance', type: 'income', icon: 'Gift', color: '#EC4899' },
   { id: 'c2', name: 'Freelance', type: 'income', icon: 'Briefcase', color: '#10B981' },
   { id: 'c3', name: 'Fees & Subscriptions', type: 'expense', icon: 'CreditCard', color: '#F59E0B' },
@@ -18,44 +13,156 @@ const initialCategories = [
   { id: 'c7', name: 'Other Expenses', type: 'expense', icon: 'Grid', color: '#6B7280' },
 ];
 
-const initialTransactions = [
-  { id: 't1', account_id: '1', category_id: 'c1', category_name: 'Gift / Allowance', amount: 1876.95, type: 'income', transaction_date: new Date(Date.now() - 86400000 * 2).toISOString(), notes: 'Monthly Allowance' },
-  { id: 't2', account_id: '5', category_id: 'c3', category_name: 'Fees & Subscriptions', amount: 6984.00, type: 'expense', transaction_date: new Date(Date.now() - 86400000 * 1).toISOString(), notes: 'Software License Fees' },
-  { id: 't3', account_id: '1', category_id: 'c4', category_name: 'Food & Dining', amount: 747.00, type: 'expense', transaction_date: new Date().toISOString(), notes: 'Groceries and snacks' },
-  { id: 't4', account_id: '3', category_id: 'c5', category_name: 'Fun & Entertainment', amount: 569.93, type: 'expense', transaction_date: new Date(Date.now() - 86400000 * 3).toISOString(), notes: 'Gaming subscription' },
-  { id: 't5', account_id: '4', category_id: 'c6', category_name: 'Transport', amount: 225.00, type: 'expense', transaction_date: new Date(Date.now() - 86400000 * 4).toISOString(), notes: 'Commute reload' },
-  { id: 't6', account_id: '1', category_id: 'c7', category_name: 'Other Expenses', amount: 781.38, type: 'expense', transaction_date: new Date(Date.now() - 86400000 * 5).toISOString(), notes: 'Misc supplies' },
-];
+// Helper to load saved local state for unauthenticated / offline mode
+const loadLocalState = () => {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('Failed to load local storage state:', e);
+  }
+  return null;
+};
 
-const initialCommitments = [
-  { id: 'm1', title: 'SpayLater Bill', type: 'debt', total_amount: 2893.50, remaining_balance: 40.75, due_date: '2026-08-05', vendor: 'Shopee', status: '3 days left' },
-  { id: 'm2', title: 'Allowance Expected', type: 'owed_to_me', total_amount: 85.00, remaining_balance: 85.00, due_date: '2026-08-10', vendor: 'Allowance', status: 'Upcoming' },
-  { id: 'm3', title: 'Laptop Loan to Alex', type: 'owed_to_me', total_amount: 2500.00, remaining_balance: 1200.00, due_date: '2026-08-18', vendor: 'Alex', status: 'In Progress' },
-];
+// Helper to save state to localStorage
+const saveLocalState = (state) => {
+  try {
+    const payload = {
+      accounts: state.accounts || [],
+      categories: state.categories || defaultCategories,
+      transactions: state.transactions || [],
+      commitments: state.commitments || [],
+      personalGoals: state.personalGoals || [],
+      userName: state.userName || 'User',
+      streakCountCriteria: state.streakCountCriteria || 'either',
+    };
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn('Failed to save to local storage:', e);
+  }
+};
 
-const initialPersonalGoals = [
-  { id: 'g1', title: 'Emergency Fund', target_amount: 50000, current_amount: 15000, target_date: '2026-12-31', category: 'Savings' },
-  { id: 'g2', title: 'New Laptop', target_amount: 45000, current_amount: 12500, target_date: '2026-10-15', category: 'Tech' },
-];
+const calculateDynamicStreak = (transactions, criteria = 'either') => {
+  if (!transactions || transactions.length === 0) return 0;
+
+  const filtered = transactions.filter((t) => {
+    if (criteria === 'income') return t.type === 'income';
+    if (criteria === 'expense') return t.type === 'expense';
+    return true;
+  });
+
+  if (filtered.length === 0) return 0;
+
+  const activeDates = new Set(
+    filtered.map((t) => new Date(t.transaction_date).toISOString().slice(0, 10))
+  );
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  let currentCheck = activeDates.has(todayStr)
+    ? today
+    : activeDates.has(yesterdayStr)
+    ? yesterday
+    : null;
+
+  if (!currentCheck) return 0;
+
+  let streak = 0;
+  while (true) {
+    const checkStr = currentCheck.toISOString().slice(0, 10);
+    if (activeDates.has(checkStr)) {
+      streak += 1;
+      currentCheck.setDate(currentCheck.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+};
+
+const localSaved = loadLocalState();
 
 export const useStore = create((set, get) => ({
-  accounts: initialAccounts,
-  categories: initialCategories,
-  transactions: initialTransactions,
-  commitments: initialCommitments,
-  personalGoals: initialPersonalGoals,
-  streakDays: 10,
-  streakCountCriteria: 'either', // 'either' | 'expense' | 'income'
-  userName: 'Kaeyls',
+  user: null,
+  session: null,
+  accounts: localSaved?.accounts || [],
+  categories: localSaved?.categories || defaultCategories,
+  transactions: localSaved?.transactions || [],
+  commitments: localSaved?.commitments || [],
+  personalGoals: localSaved?.personalGoals || [],
+  streakDays: 0,
+  streakCountCriteria: localSaved?.streakCountCriteria || 'either',
+  userName: localSaved?.userName || 'User',
   netWorth: 0,
-  recentIncome: 1876.95,
-  recentExpenses: 9408.42,
+  recentIncome: 0,
+  recentExpenses: 0,
+  loading: false,
 
-  setStreakCountCriteria: (criteria) => {
-    set({ streakCountCriteria: criteria });
+  setSession: (session) => {
+    set({ session, user: session?.user || null });
+    if (session?.user) {
+      get().fetchUserData();
+    } else {
+      const local = loadLocalState();
+      set({
+        accounts: local?.accounts || [],
+        categories: local?.categories || defaultCategories,
+        transactions: local?.transactions || [],
+        commitments: local?.commitments || [],
+        personalGoals: local?.personalGoals || [],
+        userName: local?.userName || 'User',
+        streakCountCriteria: local?.streakCountCriteria || 'either',
+      });
+      get().recomputeStats();
+    }
   },
 
-  // Calculate Net Worth: Add assets (debit/e-wallet), subtract liabilities (pay_later/credit)
+  setUserName: async (newName) => {
+    set({ userName: newName });
+    saveLocalState(get());
+
+    const { user } = get();
+    if (user) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          full_name: newName,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn('Profile name update warning:', e);
+      }
+    }
+  },
+
+  setStreakCountCriteria: async (criteria) => {
+    set({ streakCountCriteria: criteria });
+    saveLocalState(get());
+    const streak = calculateDynamicStreak(get().transactions, criteria);
+    set({ streakDays: streak });
+
+    const { user } = get();
+    if (user) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          streak_count_criteria: criteria,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn('Profile streak criteria update warning:', e);
+      }
+    }
+  },
+
   calculateNetWorth: () => {
     const { accounts } = get();
     const total = accounts.reduce((sum, acc) => {
@@ -68,61 +175,94 @@ export const useStore = create((set, get) => ({
     set({ netWorth: total });
   },
 
-  setAccounts: (accounts) => {
-    set({ accounts });
-    get().calculateNetWorth();
-  },
-
-  addTransaction: (tx) => {
-    const newTx = {
-      ...tx,
-      id: 't_' + Date.now(),
-      transaction_date: tx.transaction_date || new Date().toISOString(),
-    };
-    
-    // Update account balance
-    const accounts = get().accounts.map((acc) => {
-      if (acc.id === tx.account_id) {
-        const currentBal = Number(acc.balance) || 0;
-        const txAmount = Number(tx.amount) || 0;
-        const updatedBal = tx.type === 'income' ? currentBal + txAmount : currentBal - txAmount;
-        return { ...acc, balance: updatedBal };
-      }
-      return acc;
+  recomputeStats: () => {
+    const { transactions, streakCountCriteria } = get();
+    let inc = 0;
+    let exp = 0;
+    transactions.forEach((t) => {
+      const amt = Number(t.amount) || 0;
+      if (t.type === 'income') inc += amt;
+      if (t.type === 'expense') exp += amt;
     });
 
-    const isIncome = tx.type === 'income';
-    const amount = Number(tx.amount) || 0;
+    const calculatedStreak = calculateDynamicStreak(transactions, streakCountCriteria);
 
-    set((state) => ({
-      transactions: [newTx, ...state.transactions],
-      accounts,
-      recentIncome: isIncome ? state.recentIncome + amount : state.recentIncome,
-      recentExpenses: !isIncome ? state.recentExpenses + amount : state.recentExpenses,
-    }));
-
+    set({
+      recentIncome: inc,
+      recentExpenses: exp,
+      streakDays: calculatedStreak,
+    });
     get().calculateNetWorth();
+
+    // Persist to local storage if user is offline / unauthenticated
+    if (!get().user) {
+      saveLocalState(get());
+    }
   },
 
-  deleteTransaction: (id) => {
-    set((state) => ({
-      transactions: state.transactions.filter((t) => t.id !== id),
-    }));
-    get().calculateNetWorth();
+  fetchUserData: async () => {
+    const { user } = get();
+    if (!user) return;
+    set({ loading: true });
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile) {
+        set({
+          userName: profile.full_name || user.email?.split('@')[0] || 'User',
+          streakCountCriteria: profile.streak_count_criteria || 'either',
+        });
+      } else {
+        set({ userName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User' });
+      }
+
+      const { data: accountsData } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user.id);
+
+      const { data: categoriesData } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user.id);
+
+      const { data: transactionsData } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('transaction_date', { ascending: false });
+
+      const { data: commitmentsData } = await supabase
+        .from('commitments')
+        .select('*')
+        .eq('user_id', user.id);
+
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', user.id);
+
+      set({
+        accounts: accountsData || [],
+        categories: categoriesData && categoriesData.length > 0 ? categoriesData : defaultCategories,
+        transactions: transactionsData || [],
+        commitments: commitmentsData || [],
+        personalGoals: goalsData || [],
+      });
+
+      get().recomputeStats();
+    } catch (err) {
+      console.error('Error fetching Supabase data:', err);
+    } finally {
+      set({ loading: false });
+    }
   },
 
-  addAccount: (acc) => {
-    const newAcc = { 
-      ...acc, 
-      id: 'a_' + Date.now(),
-      categoryGroup: acc.type === 'pay_later' || acc.type === 'credit' ? 'Liabilities' : (acc.type === 'debit' ? 'Banks' : 'E-Wallets'),
-      color: acc.type === 'pay_later' ? '#EF4444' : '#10B981'
-    };
-    set((state) => ({ accounts: [...state.accounts, newAcc] }));
-    get().calculateNetWorth();
-  },
-
-  // Automatic Daily Interest Calculator Engine (Runs silently in background)
   autoProcessDailyInterest: () => {
     const { accounts } = get();
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -132,7 +272,6 @@ export const useStore = create((set, get) => ({
       const rate = Number(acc.annual_interest_rate) || 0;
       const bal = Number(acc.balance) || 0;
 
-      // Only compute for accounts with active interest rate
       if (rate > 0 && bal > 0 && acc.last_interest_date !== todayStr) {
         const taxRate = Number(acc.withholding_tax ?? 20) / 100;
         const grossDailyInterest = (bal * (rate / 100)) / 365;
@@ -152,16 +291,182 @@ export const useStore = create((set, get) => ({
     if (hasUpdated) {
       set({ accounts: updatedAccounts });
       get().calculateNetWorth();
+      if (!get().user) saveLocalState(get());
     }
   },
 
-  addCommitment: (com) => {
-    const newCom = { ...com, id: 'cm_' + Date.now() };
-    set((state) => ({ commitments: [...state.commitments, newCom] }));
+  addTransaction: async (tx) => {
+    const { user, accounts, transactions } = get();
+
+    const newTx = {
+      account_id: tx.account_id,
+      category_id: tx.category_id || null,
+      category_name: tx.category_name || 'General',
+      amount: Number(tx.amount) || 0,
+      type: tx.type,
+      notes: tx.notes || '',
+      transaction_date: tx.transaction_date || new Date().toISOString(),
+    };
+
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert({ ...newTx, user_id: user.id })
+          .select()
+          .single();
+
+        if (error) console.warn('Supabase transaction insert warning:', error.message);
+        if (data) newTx.id = data.id;
+      } catch (e) {
+        console.warn('DB error:', e);
+      }
+    }
+
+    if (!newTx.id) newTx.id = 't_' + Date.now();
+
+    const updatedAccounts = accounts.map((acc) => {
+      if (acc.id === tx.account_id) {
+        const currentBal = Number(acc.balance) || 0;
+        const txAmount = Number(tx.amount) || 0;
+        const updatedBal = tx.type === 'income' ? currentBal + txAmount : currentBal - txAmount;
+
+        if (user) {
+          supabase
+            .from('accounts')
+            .update({ balance: updatedBal })
+            .eq('id', acc.id)
+            .then();
+        }
+
+        return { ...acc, balance: updatedBal };
+      }
+      return acc;
+    });
+
+    set({
+      transactions: [newTx, ...transactions],
+      accounts: updatedAccounts,
+    });
+
+    get().recomputeStats();
   },
 
-  payCommitment: (commitmentId, paymentAmount, accountId) => {
-    const { commitments, accounts, addTransaction } = get();
+  deleteTransaction: async (id) => {
+    const { user, transactions } = get();
+
+    if (user) {
+      try {
+        await supabase.from('transactions').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Delete transaction warning:', e);
+      }
+    }
+
+    const updated = transactions.filter((t) => t.id !== id);
+    set({ transactions: updated });
+    get().recomputeStats();
+  },
+
+  addAccount: async (acc) => {
+    const { user, accounts } = get();
+
+    const group = acc.type === 'pay_later' || acc.type === 'credit' ? 'Liabilities' : (acc.type === 'debit' ? 'Banks' : 'E-Wallets');
+
+    const dbAcc = {
+      name: acc.name,
+      type: acc.type,
+      balance: Number(acc.balance) || 0,
+      template_identifier: acc.template_identifier || 'custom',
+      category_group: group,
+      color: acc.type === 'pay_later' ? '#EF4444' : '#10B981',
+      subtext: acc.subtext || '',
+      annual_interest_rate: Number(acc.annual_interest_rate) || 0,
+      interest_frequency: acc.interest_frequency || 'daily',
+      withholding_tax: Number(acc.withholding_tax ?? 20),
+      maintaining_balance: Number(acc.maintaining_balance) || 0,
+    };
+
+    let createdAcc = { ...dbAcc, categoryGroup: group };
+
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from('accounts')
+          .insert({ ...dbAcc, user_id: user.id })
+          .select()
+          .single();
+
+        if (error) {
+          alert('Error adding account to database: ' + error.message);
+        } else if (data) {
+          createdAcc = { ...data, categoryGroup: data.category_group || group };
+        }
+      } catch (e) {
+        console.warn('DB error:', e);
+      }
+    }
+
+    if (!createdAcc.id) createdAcc.id = 'a_' + Date.now();
+
+    set({ accounts: [...accounts, createdAcc] });
+    get().calculateNetWorth();
+    if (!user) saveLocalState(get());
+  },
+
+  deleteAccount: async (id) => {
+    const { user, accounts } = get();
+
+    if (user) {
+      try {
+        await supabase.from('accounts').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Delete account warning:', e);
+      }
+    }
+
+    const updated = accounts.filter((a) => a.id !== id);
+    set({ accounts: updated });
+    get().calculateNetWorth();
+    if (!user) saveLocalState(get());
+  },
+
+  addCommitment: async (com) => {
+    const { user, commitments } = get();
+
+    const newCom = {
+      title: com.title,
+      type: com.type,
+      total_amount: Number(com.total_amount) || 0,
+      remaining_balance: Number(com.remaining_balance ?? com.total_amount) || 0,
+      due_date: com.due_date || null,
+      vendor: com.vendor || '',
+      status: 'In Progress',
+    };
+
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from('commitments')
+          .insert({ ...newCom, user_id: user.id })
+          .select()
+          .single();
+
+        if (error) console.warn('Supabase commitment insert warning:', error.message);
+        if (data) newCom.id = data.id;
+      } catch (e) {
+        console.warn('DB error:', e);
+      }
+    }
+
+    if (!newCom.id) newCom.id = 'cm_' + Date.now();
+
+    set({ commitments: [...commitments, newCom] });
+    if (!user) saveLocalState(get());
+  },
+
+  payCommitment: async (commitmentId, paymentAmount, accountId) => {
+    const { commitments, accounts, addTransaction, user } = get();
     const targetCom = commitments.find((c) => c.id === commitmentId);
     const targetAcc = accounts.find((a) => a.id === accountId);
 
@@ -170,12 +475,11 @@ export const useStore = create((set, get) => ({
     const payVal = Number(paymentAmount);
     if (payVal <= 0) return alert('Enter a valid payment amount');
 
-    // Deduct from wallet balance & create transaction
     const isReceiving = targetCom.type === 'owed_to_me';
-    
-    addTransaction({
+
+    await addTransaction({
       account_id: accountId,
-      category_id: 'c3',
+      category_id: null,
       category_name: isReceiving ? 'Debt Collection' : 'Debt Payment',
       amount: payVal,
       type: isReceiving ? 'income' : 'expense',
@@ -183,39 +487,74 @@ export const useStore = create((set, get) => ({
       transaction_date: new Date().toISOString(),
     });
 
-    // Update remaining balance on commitment
+    const newBal = Math.max(0, Number(targetCom.remaining_balance) - payVal);
+    const newStatus = newBal === 0 ? 'Fully Settled' : 'In Progress';
+
+    if (user) {
+      try {
+        await supabase
+          .from('commitments')
+          .update({ remaining_balance: newBal, status: newStatus })
+          .eq('id', commitmentId);
+      } catch (e) {
+        console.warn('DB error:', e);
+      }
+    }
+
     const updatedCommitments = commitments.map((c) => {
       if (c.id === commitmentId) {
-        const newBal = Math.max(0, Number(c.remaining_balance) - payVal);
-        return { 
-          ...c, 
-          remaining_balance: newBal, 
-          status: newBal === 0 ? 'Fully Settled' : 'In Progress' 
-        };
+        return { ...c, remaining_balance: newBal, status: newStatus };
       }
       return c;
     });
 
     set({ commitments: updatedCommitments });
+    if (!user) saveLocalState(get());
   },
 
-  addPersonalGoal: (goal) => {
-    const newGoal = { ...goal, id: 'g_' + Date.now(), current_amount: Number(goal.current_amount) || 0 };
-    set((state) => ({ personalGoals: [...state.personalGoals, newGoal] }));
+  addPersonalGoal: async (goal) => {
+    const { user, personalGoals } = get();
+
+    const newGoal = {
+      title: goal.title,
+      target_amount: Number(goal.target_amount) || 0,
+      current_amount: Number(goal.current_amount) || 0,
+      target_date: goal.target_date || null,
+      category: goal.category || 'Savings',
+    };
+
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from('goals')
+          .insert({ ...newGoal, user_id: user.id })
+          .select()
+          .single();
+
+        if (error) console.warn('Supabase goal insert warning:', error.message);
+        if (data) newGoal.id = data.id;
+      } catch (e) {
+        console.warn('DB error:', e);
+      }
+    }
+
+    if (!newGoal.id) newGoal.id = 'g_' + Date.now();
+
+    set({ personalGoals: [...personalGoals, newGoal] });
+    if (!user) saveLocalState(get());
   },
 
-  contributeToGoal: (goalId, amount, accountId) => {
-    const { personalGoals, accounts, addTransaction } = get();
+  contributeToGoal: async (goalId, amount, accountId) => {
+    const { personalGoals, addTransaction, user } = get();
     const goal = personalGoals.find((g) => g.id === goalId);
     if (!goal) return;
 
     const val = Number(amount);
     if (val <= 0) return alert('Enter a valid contribution amount');
 
-    // Create expense transaction for goal allocation
-    addTransaction({
+    await addTransaction({
       account_id: accountId,
-      category_id: 'c7',
+      category_id: null,
       category_name: 'Goal Savings',
       amount: val,
       type: 'expense',
@@ -223,14 +562,28 @@ export const useStore = create((set, get) => ({
       transaction_date: new Date().toISOString(),
     });
 
+    const newCurrent = Number(goal.current_amount) + val;
+
+    if (user) {
+      try {
+        await supabase
+          .from('goals')
+          .update({ current_amount: newCurrent })
+          .eq('id', goalId);
+      } catch (e) {
+        console.warn('DB error:', e);
+      }
+    }
+
     const updatedGoals = personalGoals.map((g) => {
       if (g.id === goalId) {
-        return { ...g, current_amount: Number(g.current_amount) + val };
+        return { ...g, current_amount: newCurrent };
       }
       return g;
     });
 
     set({ personalGoals: updatedGoals });
+    if (!user) saveLocalState(get());
   },
 
   exportToCSV: () => {

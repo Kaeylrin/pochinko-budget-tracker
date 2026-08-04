@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { 
   PlusCircle, 
@@ -31,14 +31,20 @@ import {
 } from 'lucide-react';
 
 export default function TransactionModal({ isOpen, onClose }) {
-  const { accounts, categories, addTransaction } = useStore();
+  const { accounts, categories, addTransaction, addAccount } = useStore();
   const [type, setType] = useState('expense');
   const [selectedCategory, setSelectedCategory] = useState('c4'); // Food default
   const [amount, setAmount] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState(accounts[0]?.id || '1');
+  const [selectedAccount, setSelectedAccount] = useState(accounts[0]?.id || '');
   const [notes, setNotes] = useState('');
-  const [loggedDate, setLoggedDate] = useState('2026-08-02');
-  const [loggedTime, setLoggedTime] = useState('21:24');
+  const [loggedDate, setLoggedDate] = useState(new Date().toISOString().slice(0, 10));
+
+  useEffect(() => {
+    if (accounts.length > 0 && (!selectedAccount || !accounts.find(a => a.id === selectedAccount))) {
+      setSelectedAccount(accounts[0].id);
+    }
+  }, [accounts, selectedAccount]);
+  const [loggedTime, setLoggedTime] = useState(new Date().toTimeString().slice(0, 5));
 
   // Advanced Recurring Settings
   const [isRecurring, setIsRecurring] = useState(false);
@@ -122,14 +128,21 @@ export default function TransactionModal({ isOpen, onClose }) {
     setNotes(tmpl.note);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) return alert('Please enter a valid amount');
-    
+
+    let targetAccount = selectedAccount || accounts[0]?.id;
+    if (!targetAccount) {
+      await addAccount({ name: 'Cash Wallet', type: 'e-wallet', balance: 0 });
+      const currentAccounts = useStore.getState().accounts;
+      targetAccount = currentAccounts[currentAccounts.length - 1]?.id;
+    }
+
     const catObj = activeCategoryList.find((c) => c.id === selectedCategory);
 
     addTransaction({
-      account_id: selectedAccount,
+      account_id: targetAccount,
       category_id: selectedCategory,
       category_name: catObj ? catObj.name : 'General',
       amount: Number(amount),
@@ -410,20 +423,33 @@ export default function TransactionModal({ isOpen, onClose }) {
 
           {/* Account Picker & Submit Button */}
           <div className="flex gap-3 pt-2">
-            <div className="flex-1">
-              <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">ACCOUNT</label>
-              <select
-                value={selectedAccount}
-                onChange={(e) => setSelectedAccount(e.target.value)}
-                className="w-full p-3 bg-gray-50 border-2 border-gray-200 rounded-2xl text-xs font-bold text-gray-900"
-              >
-                {accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} (₱{Number(acc.balance).toLocaleString()})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {accounts.length === 0 ? (
+              <div className="flex-1">
+                <label className="block text-[10px] font-black text-amber-800 uppercase mb-1">NO ACCOUNT YET</label>
+                <button
+                  type="button"
+                  onClick={() => addAccount({ name: 'Cash Wallet', type: 'e-wallet', balance: 0 })}
+                  className="w-full p-2.5 bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 rounded-2xl text-xs font-black text-gray-900 flex items-center justify-center gap-1 cursor-pointer transition-all"
+                >
+                  <Plus size={14} /> Create Cash Wallet
+                </button>
+              </div>
+            ) : (
+              <div className="flex-1">
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">ACCOUNT</label>
+                <select
+                  value={selectedAccount}
+                  onChange={(e) => setSelectedAccount(e.target.value)}
+                  className="w-full p-3 bg-gray-50 border-2 border-gray-200 rounded-2xl text-xs font-bold text-gray-900 focus:border-amber-400 focus:outline-none"
+                >
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} (₱{Number(acc.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="flex-1 flex items-end">
               <button

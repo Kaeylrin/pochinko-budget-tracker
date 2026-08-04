@@ -22,9 +22,12 @@ export default function PlansAndPaymentsSection() {
 
   // New Debt/Owed Form State
   const [newTitle, setNewTitle] = useState('');
+  const [newVendor, setNewVendor] = useState('');
   const [newType, setNewType] = useState('debt');
   const [newAmount, setNewAmount] = useState('');
   const [newDueDate, setNewDueDate] = useState('2026-08-15');
+  const [newMonthly, setNewMonthly] = useState('');
+  const [newTenure, setNewTenure] = useState('');
 
   // New Goal Form State
   const [newGoalTitle, setNewGoalTitle] = useState('');
@@ -42,7 +45,9 @@ export default function PlansAndPaymentsSection() {
   const handlePaySubmit = (e) => {
     e.preventDefault();
     if (!payingCommitment || !payAmount) return;
-    payCommitment(payingCommitment.id, payAmount, selectedWalletId);
+    const walletId = selectedWalletId || accounts[0]?.id;
+    if (!walletId) return alert('Please select or create an account first!');
+    payCommitment(payingCommitment.id, payAmount, walletId);
     setPayingCommitment(null);
     setPayAmount('');
   };
@@ -50,7 +55,9 @@ export default function PlansAndPaymentsSection() {
   const handleGoalSaveSubmit = (e) => {
     e.preventDefault();
     if (!savingGoal || !saveAmount) return;
-    contributeToGoal(savingGoal.id, saveAmount, saveWalletId);
+    const walletId = saveWalletId || accounts[0]?.id;
+    if (!walletId) return alert('Please select or create an account first!');
+    contributeToGoal(savingGoal.id, saveAmount, walletId);
     setSavingGoal(null);
     setSaveAmount('');
   };
@@ -58,16 +65,26 @@ export default function PlansAndPaymentsSection() {
   const handleAddCommitmentSubmit = (e) => {
     e.preventDefault();
     if (!newTitle || !newAmount) return;
+
+    let vendorStr = newVendor || newTitle;
+    if (newType === 'installment' && newMonthly) {
+      vendorStr = `${newVendor ? newVendor + ' • ' : ''}₱${Number(newMonthly).toLocaleString()}/mo (${newTenure || '12'} mos)`;
+    }
+
     addCommitment({
       title: newTitle,
       type: newType,
       total_amount: Number(newAmount),
       remaining_balance: Number(newAmount),
       due_date: newDueDate,
-      status: 'Active'
+      vendor: vendorStr,
+      status: 'In Progress'
     });
     setNewTitle('');
+    setNewVendor('');
     setNewAmount('');
+    setNewMonthly('');
+    setNewTenure('');
   };
 
   const handleAddGoalSubmit = (e) => {
@@ -105,7 +122,7 @@ export default function PlansAndPaymentsSection() {
           <button
             onClick={() => setActiveSubTab('commitments')}
             className={`flex-1 sm:flex-initial px-6 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer ${
-              activeSubTab === 'commitments' ? 'bg-[#1F2937] text-white shadow-2xs' : 'text-gray-600 hover:text-gray-900'
+              activeSubTab === 'commitments' ? 'bg-[#FFF2B2] text-amber-950 border border-yellow-400 shadow-2xs' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Debts & Owed Money
@@ -113,7 +130,7 @@ export default function PlansAndPaymentsSection() {
           <button
             onClick={() => setActiveSubTab('goals')}
             className={`flex-1 sm:flex-initial px-6 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer ${
-              activeSubTab === 'goals' ? 'bg-[#1F2937] text-white shadow-2xs' : 'text-gray-600 hover:text-gray-900'
+              activeSubTab === 'goals' ? 'bg-[#FFF2B2] text-amber-950 border border-yellow-400 shadow-2xs' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Personal Savings Goals
@@ -220,61 +237,127 @@ export default function PlansAndPaymentsSection() {
           </div>
 
           {/* Form: Add New Debt or Money Owed */}
-          <div className="bg-white p-6 rounded-3xl border-2 border-gray-200 shadow-xs h-fit">
-            <h3 className="font-black text-gray-900 text-base mb-4">Add Commitment Record</h3>
+          {/* Form: Add Commitment Record with Dynamic Fields per Type */}
+          <div className="bg-white p-6 rounded-3xl border border-gray-200/80 shadow-xs h-fit">
+            <h3 className="font-black text-gray-900 text-base mb-1">Add Commitment Record</h3>
+            <p className="text-xs text-gray-500 font-semibold mb-4">Fields adapt based on commitment type</p>
+
             <form onSubmit={handleAddCommitmentSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Title / Person</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. SpayLater or Alex Loan"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full p-3 bg-gray-50 border-2 border-gray-200 rounded-2xl text-sm font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Type</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Commitment Type</label>
                 <select
                   value={newType}
                   onChange={(e) => setNewType(e.target.value)}
-                  className="w-full p-3 bg-gray-50 border-2 border-gray-200 rounded-2xl text-sm font-semibold text-gray-900"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold text-gray-900 focus:border-amber-400 focus:outline-none"
                 >
                   <option value="debt">I owe this (Debt / Bill)</option>
                   <option value="owed_to_me">Owed to me (Friend Loan / Expected)</option>
-                  <option value="installment">Installment</option>
+                  <option value="installment">Installment Purchase</option>
                 </select>
               </div>
 
+              {/* Dynamic Title / Person Field */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Total Amount (₱)</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  {newType === 'debt' && 'Bill / Debt Name'}
+                  {newType === 'owed_to_me' && 'Person / Borrower Name'}
+                  {newType === 'installment' && 'Item / Purchase Name'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={
+                    newType === 'debt'
+                      ? 'e.g. Electric Bill, SpayLater Bill'
+                      : newType === 'owed_to_me'
+                      ? 'e.g. Alex, Maria'
+                      : 'e.g. iPhone 15, Refrigerator'
+                  }
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-semibold text-gray-900 focus:border-amber-400 focus:outline-none"
+                />
+              </div>
+
+              {/* Dynamic Creditor / Store Field */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  {newType === 'debt' && 'Vendor / Creditor (Optional)'}
+                  {newType === 'owed_to_me' && 'Loan Purpose / Description'}
+                  {newType === 'installment' && 'Merchant / Store Name'}
+                </label>
+                <input
+                  type="text"
+                  placeholder={
+                    newType === 'debt'
+                      ? 'e.g. Meralco, Shopee'
+                      : newType === 'owed_to_me'
+                      ? 'e.g. Emergency Cash, Laptop Borrow'
+                      : 'e.g. Abenson, Power Mac'
+                  }
+                  value={newVendor}
+                  onChange={(e) => setNewVendor(e.target.value)}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-semibold text-gray-900 focus:border-amber-400 focus:outline-none"
+                />
+              </div>
+
+              {/* Dynamic Installment Extra Fields */}
+              {newType === 'installment' && (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-amber-50/60 rounded-2xl border border-amber-200/80">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">Monthly Pay (₱)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 2500"
+                      value={newMonthly}
+                      onChange={(e) => setNewMonthly(e.target.value)}
+                      className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">Months Tenure</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 12"
+                      value={newTenure}
+                      onChange={(e) => setNewTenure(e.target.value)}
+                      className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  {newType === 'owed_to_me' ? 'Total Amount Owed to You (₱)' : 'Total Amount (₱)'}
+                </label>
                 <input
                   type="number"
                   required
                   placeholder="0.00"
                   value={newAmount}
                   onChange={(e) => setNewAmount(e.target.value)}
-                  className="w-full p-3 bg-gray-50 border-2 border-gray-200 rounded-2xl text-sm font-semibold"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold text-gray-900 focus:border-amber-400 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Due Date</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  {newType === 'owed_to_me' ? 'Expected Repayment Date' : 'Due Date'}
+                </label>
                 <input
                   type="date"
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
-                  className="w-full p-3 bg-gray-50 border-2 border-gray-200 rounded-2xl text-xs font-bold text-gray-900"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold text-gray-900 focus:border-amber-400 focus:outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#FFF2B2] hover:bg-amber-300 border-2 border-gray-900 font-black text-gray-900 rounded-2xl text-sm cursor-pointer"
+                className="w-full py-3.5 bg-[#FFF2B2] hover:bg-amber-300 border border-yellow-400 font-black text-gray-900 rounded-2xl text-xs cursor-pointer transition-all shadow-xs active:scale-[0.98]"
               >
-                Save Record
+                Save Commitment Record
               </button>
             </form>
           </div>
